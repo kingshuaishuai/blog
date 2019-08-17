@@ -228,6 +228,7 @@ export function createElement(type, config, children) {
 ```
 
 ![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566005551482.png)
+
 这里画了一张不标准的流程图（大致描述代码），如果有强迫症的同学可以动手画一画做的标准一点。从流程图我们可以比较清楚的看到这段代码的作用，首先从`config`中过滤出`ref`和`key`属性，这两个属性应该是保留属性中的内容，然后获取了`config`的`__self`和`__source`属性，之后对config的自有属性进行了遍历，过滤了保留属性中的内容，将其他属性存放在`props`对象中。
 一句话将就是获取普通属性放到`props`中并提取了保留属性。上面提到的`__self`和`__source`长什么样子，我们可以看看16-21行的定义中看到。
 
@@ -263,6 +264,7 @@ const RESERVED_PROPS = {
 ```
 
 ![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566007585601.png)
+
 从`代码片段3`可以看出首先通过arguments对象长度计算`children`的长度，若`children`只有一个元素则props对象的children属性就指向这个元素，如果children元素个数大于1，则创建childArray对象存储他们，再让props对象的children元素指向这个数组。
 
 > 其中有段代码是冻结`childArray`对象，对于`Object.freeze()`，平时使用并不多，如果小伙伴不知道它的作用，看看下面取自[MDN](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze)的一段描述：
