@@ -224,4 +224,4 @@ export function createElement(type, config, children) {
   }
 ```
 
-![Diagram](./attachments/1566004311789.drawio.html)
+![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566005551482.png)
