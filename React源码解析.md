@@ -266,6 +266,135 @@ const RESERVED_PROPS = {
 ![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566007585601.png)
 
 从`代码片段3`可以看出首先通过arguments对象长度计算`children`的长度，若`children`只有一个元素则props对象的children属性就指向这个元素，如果children元素个数大于1，则创建childArray对象存储他们，再让props对象的children元素指向这个数组。
+`注意事项：`
+从上述源码中我们可以看出来`props.children`可能是一个数组，也可能不是，所以在使用`children`过程中，我们必须注意`children`是不是数组
 
 > 其中有段代码是冻结`childArray`对象，对于`Object.freeze()`，平时使用并不多，如果小伙伴不知道它的作用，看看下面取自[MDN](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze)的一段描述：
 > `Object.freeze()` 方法可以冻结一个对象。一个被冻结的对象再也不能被修改；冻结了一个对象则不能向这个对象添加新的属性，不能删除已有属性，不能修改该对象已有属性的可枚举性、可配置性、可写性，以及不能修改已有属性的值。此外，冻结一个对象后该对象的原型也不能被修改。
+
+**代码片段4：取默认属性**
+
+``` javascript
+  // Resolve default props
+  if (type && type.defaultProps) {
+    const defaultProps = type.defaultProps;
+    for (propName in defaultProps) {
+      if (props[propName] === undefined) {
+        props[propName] = defaultProps[propName];
+      }
+    }
+  }
+```
+
+![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566009656448.png)
+
+这段代码比较容易看懂，如果`type`中存在默认属性，则遍历取出来，如果`props`对象中没有该属性则进行存入。而这个拥有`defaultProps`的`type`是什么，我们之前看到过，type可以为字符串:表示一个html标签；也可以为变量：表示一个组件，那一个组件中就可能存在一些属性了。
+
+**代码片段5：结束**
+
+``` javascript
+  if (__DEV__) {
+    if (key || ref) {
+      const displayName =
+        typeof type === 'function'
+          ? type.displayName || type.name || 'Unknown'
+          : type;
+      if (key) {
+        defineKeyPropWarningGetter(props, displayName);
+      }
+      if (ref) {
+        defineRefPropWarningGetter(props, displayName);
+      }
+    }
+  }
+  return ReactElement(
+    type,
+    key,
+    ref,
+    self,
+    source,
+    ReactCurrentOwner.current,
+    props,
+  );
+```
+在这个函数中还剩下最后一段代码（本来不想说这个了，但是强迫症逼的还是说一下吧），在开发环境下（`__DEV__`），如果`key`跟`ref`任何一个属性存在，则会判断type的类型是否为`function`，如果是的话，则取出`type`的`displayName`或`name`，如果这两个属性都没有则取`Unknown`,如果不是`function`,就取`type`（此时指的是这个html标签名称），取出来的作用就是在`key`或者`ref`爆出警告时候，展示出来的名称就是这个`displayname`。最后根据一系列属性返回一个`ReactElement`;
+
+既然说到了`ReactElement`，我们就先来看看这个API。
+
+## ReactElement: 探索React元素
+
+``` javascript
+const ReactElement = function(type, key, ref, self, source, owner, props) {
+  const element = {
+    // This tag allows us to uniquely identify this as a React Element
+    $$typeof: REACT_ELEMENT_TYPE,
+
+    // Built-in properties that belong on the element
+    type: type,
+    key: key,
+    ref: ref,
+    props: props,
+
+    // Record the component responsible for creating this element.
+    _owner: owner,
+  };
+
+  if (__DEV__) {
+    // The validation flag is currently mutative. We put it on
+    // an external backing store so that we can freeze the whole object.
+    // This can be replaced with a WeakMap once they are implemented in
+    // commonly used development environments.
+    element._store = {};
+
+    // To make comparing ReactElements easier for testing purposes, we make
+    // the validation flag non-enumerable (where possible, which should
+    // include every environment we run tests in), so the test framework
+    // ignores it.
+    Object.defineProperty(element._store, 'validated', {
+      configurable: false,
+      enumerable: false,
+      writable: true,
+      value: false,
+    });
+    // self and source are DEV only properties.
+    Object.defineProperty(element, '_self', {
+      configurable: false,
+      enumerable: false,
+      writable: false,
+      value: self,
+    });
+    // Two elements created in two different places should be considered
+    // equal for testing purposes and therefore we hide it from enumeration.
+    Object.defineProperty(element, '_source', {
+      configurable: false,
+      enumerable: false,
+      writable: false,
+      value: source,
+    });
+    if (Object.freeze) {
+      Object.freeze(element.props);
+      Object.freeze(element);
+    }
+  }
+
+  return element;
+};
+```
+这个函数的注释非常多，开头的一些没有贴上来，希望大家可以仔细看看这个函数相关注释。根据开头注释的描述，这个函数是个创建React元素的工厂方法，它不在支持类的模式，因此不能使用new操作符来新建元素，所以`instanceof`也无法对它的类型进行检查。那如果想要查看是否为React元素怎么办？这里提供了`Symbol.for('react.element')`的方式来对$`$$typeof`字段进行检查来确定是否为React元素。
+
+忽略`if`语句，其实这段代码就是创建了一个`element`并将其返回，这个`element`元素中包含了一些属性，其中`type`、`key`、`ref`、`props`我们已经很了解了，那么`$$typeof:REACT_ELEMENT_TYPE`是个什么东西？根据上一段文字，我们可以知道它是用来判断一个元素是否为React元素的东西，我们可以顺着找到它的定义所在`packages/shared/ReactSymbols.js`:
+
+``` javascript
+export const REACT_ELEMENT_TYPE = hasSymbol
+  ? Symbol.for('react.element')
+  : 0xeac7;
+```
+对于这段代码的逻辑相信大家都看的懂，但是对于`Symbol.for`，大家平时用到应该不是很多，有些同学可能会对他感到陌生，下面引用[MDN](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for)中一段描述来说明一下它的作用：
+> Symbol.for(key) 方法会根据给定的键 key，来从运行时的 symbol 注册表中找到对应的 symbol，如果找到了，则返回它，否则，新建一个与该键关联的 symbol，并放入全局 symbol 注册表中。
+
+还有一个`_owner`我们不太熟悉，但是根据注释我们就可以很清楚的知道它是负责记录创建此元素的组件的。通过它我们可以知道这个元素是哪个组件创建的。
+
+> 我们一会说`元素`，一会说`组件`，可能有小伙伴会感觉很晕，什么是元素，什么又是组件啊？yck大神在他的文章中很清楚的告诉了我们：如果用JSX来写`<App/>`，那么`<App/>`就是ReactElement(React元素)，而`App`代表React Component(React组件)
+
+我为什么把if语句也贴了出来，其实希望大家可以看看里面的注释（写的非常明确），不懂的话可以有道翻译，了解一下它做了什么。这里就不深入它了。
+
