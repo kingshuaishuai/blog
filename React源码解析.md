@@ -180,6 +180,7 @@ import {
 代码上方有段注释`Create and return a new ReactElement of the given type.`表明这个API作用是根据所给出的`type`类型创建并返回了一个新的`ReactElement`类型的元素。并提供了[API说明文档](https://reactjs.org/docs/react-api.html#createelement)有兴趣的同学可以先查看一下该API的描述和使用方式再看实现。
 
 
+**代码片段1：函数定义**
 ``` javascript
 export function createElement(type, config, children) {
   let propName;
@@ -201,6 +202,8 @@ export function createElement(type, config, children) {
 
 然后就是一些变量的定义了，可以看到的是尽管这是JavaScript代码，可以随时定义变量，作者仍将变量的定义提前，这也是值得我们学习和实践的。看源码的过程中希望大家尽量注意作者给出的注释。`Reserved names are extracted`表明这里会将保留名提取出来，因此我们可以猜到在props中只会存在一些正常的属性，特殊的内容会被过滤掉，后面必定也有相关逻辑。
 
+**代码片段2：元素属性过滤**
+
 ``` javascript
   if (config != null) {
     if (hasValidRef(config)) {
@@ -220,8 +223,42 @@ export function createElement(type, config, children) {
       ) {
         props[propName] = config[propName];
       }
-    }<i class="fas fa-sitemap"></i>
+    }
   }
 ```
 
 ![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566005551482.png)
+这里画了一张不标准的流程图（大致描述代码），如果有强迫症的同学可以动手画一画做的标准一点。从流程图我们可以比较清楚的看到这段代码的作用，首先从`config`中过滤出`ref`和`key`属性，这两个属性应该是保留属性中的内容，然后获取了`config`的`__self`和`__source`属性，之后对config的自有属性进行了遍历，过滤了保留属性中的内容，将其他属性存放在`props`对象中。
+一句话将就是获取普通属性放到`props`中并提取了保留属性。上面提到的`__self`和`__source`长什么样子，我们可以看看16-21行的定义中看到。
+
+``` javascript
+const RESERVED_PROPS = {
+  key: true,
+  ref: true,
+  __self: true,
+  __source: true,
+};
+```
+
+**代码片段3：**
+
+``` javascript
+  // Children can be more than one argument, and those are transferred onto
+  // the newly allocated props object.
+  const childrenLength = arguments.length - 2;
+  if (childrenLength === 1) {
+    props.children = children;
+  } else if (childrenLength > 1) {
+    const childArray = Array(childrenLength);
+    for (let i = 0; i < childrenLength; i++) {
+      childArray[i] = arguments[i + 2];
+    }
+    if (__DEV__) {
+      if (Object.freeze) {
+        Object.freeze(childArray);
+      }
+    }
+    props.children = childArray;
+  }
+```
+![Diagram](./attachments/1566006785921.drawio.html)
