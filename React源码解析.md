@@ -240,7 +240,7 @@ const RESERVED_PROPS = {
 };
 ```
 
-**代码片段3：**
+**代码片段3：提取children**
 
 ``` javascript
   // Children can be more than one argument, and those are transferred onto
@@ -261,4 +261,9 @@ const RESERVED_PROPS = {
     props.children = childArray;
   }
 ```
-![Diagram](./attachments/1566006785921.drawio.html)
+
+![流程图](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566007585601.png)
+从`代码片段3`可以看出首先通过arguments对象长度计算`children`的长度，若`children`只有一个元素则props对象的children属性就指向这个元素，如果children元素个数大于1，则创建childArray对象存储他们，再让props对象的children元素指向这个数组。
+
+> 其中有段代码是冻结`childArray`对象，对于`Object.freeze()`，平时使用并不多，如果小伙伴不知道它的作用，看看下面取自[MDN](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze)的一段描述：
+> `Object.freeze()` 方法可以冻结一个对象。一个被冻结的对象再也不能被修改；冻结了一个对象则不能向这个对象添加新的属性，不能删除已有属性，不能修改该对象已有属性的可枚举性、可配置性、可写性，以及不能修改已有属性的值。此外，冻结一个对象后该对象的原型也不能被修改。
