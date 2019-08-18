@@ -159,3 +159,76 @@ export function createRef(): RefObject {
 ```
 
 它上方有段注释`an immutable object with a single mutable value`，告诉我们创建出来的对象具有单个可变值，但是这个对象是不可变的。在其内部跟我们上面说的一样，创建了`{current: null}`并将其返回。
+
+**forwardRef的使用**
+
+``` javascript
+const FunctionComp = React.forwardRef((props, ref) => (
+  <div type="text" ref={ref}>Hello React</div>
+))
+
+class FnRefDemo extends PureComponent {
+  constructor() {
+    super();
+    this.ref = React.createRef();
+  }
+
+  componentDidMount() {
+    setTimeout(() => {
+      this.ref.current.textContent = "Changed"
+    }, 3000)
+  }
+
+  render() {
+    return (
+      <div className="RefDemo">
+        <FunctionComp ref={this.ref}/>
+      </div>
+    )
+  }
+}
+```
+
+![](https://raw.githubusercontent.com/kingshuaishuai/static_resource/master/assets/Jietu20190818-131824.gif)
+
+`forwardRef`的使用，可以让`Function Component`使用ref，传递参数时需要注意传入第二个参数`ref`
+
+**forwardRef的实现**
+
+``` javascript
+export default function forwardRef<Props, ElementType: React$ElementType>(
+  render: (props: Props, ref: React$Ref<ElementType>) => React$Node,
+) {
+  return {
+    $$typeof: REACT_FORWARD_REF_TYPE,
+    render,
+  };
+}
+
+```
+`forwardRef`接收一个函数作为参数，这个函数就是我们的函数组件，它包含`props`和`ref`属性，`forwardRef`最终返回的是一个对象，这个对象包含两个属性：
+1. `$$typeof`：这个属性看过上[一篇文章](https://github.com/kingshuaishuai/blog/blob/master/%E8%BF%9B%E5%87%BBReact%E6%BA%90%E7%A0%81%E4%B9%8B%E7%A3%A8%E5%88%80%E8%AF%95%E7%82%BC1.md)的小伙伴应该还记得，它是标志React Element类型的东西。
+2. render: 我们传递进来的函数组件。
+
+这里说明一下，尽管`forwardRef`返回的对象中`$$typeof`为`REACT_FORWARD_REF_TYPE`,但是最终创建的ReactElement的$$typeof仍然是`REACT_ELEMENT_TYPE`
+
+这里文字描述有点绕，配合图片来看文字会好点。
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566108414500.png)
+
+在上述`forwardRef使用`的代码中创建的`FunctionComp`是`{$$typeof:REACT_FORWARD_REF_TYPE,render}`这个对象，在使用`<FunctionComp ref={this.ref}/>`时，它的本质是`React.createElement(FunctionComp, {ref: xxxx}, null)`这样的，此时`FunctionComp`是我们传进`createElement`中的`type`参数，`createElement`返回的`element`的`$$typeof`仍然是`REACT_ELEMENT_TYPE`；
+
+![Diagram](./attachments/1566107090838.drawio.html)
+
+``` javascript
+  const element = {
+    $$typeof: REACT_ELEMENT_TYPE,
+
+    type: type,
+    key: key,
+    ref: ref,
+    props: props,
+
+    _owner: owner,
+  };
+
+```
