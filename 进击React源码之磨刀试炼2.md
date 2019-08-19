@@ -217,18 +217,15 @@ export default function forwardRef<Props, ElementType: React$ElementType>(
 
 在上述`forwardRef使用`的代码中创建的`FunctionComp`是`{$$typeof:REACT_FORWARD_REF_TYPE,render}`这个对象，在使用`<FunctionComp ref={this.ref}/>`时，它的本质是`React.createElement(FunctionComp, {ref: xxxx}, null)`这样的，此时`FunctionComp`是我们传进`createElement`中的`type`参数，`createElement`返回的`element`的`$$typeof`仍然是`REACT_ELEMENT_TYPE`；
 
-![Diagram](./attachments/1566107090838.drawio.html)
+## Children的实现
+在`react.js`中定义`React`时候我们可以看到一段关于`Children`的定义
 
 ``` javascript
-  const element = {
-    $$typeof: REACT_ELEMENT_TYPE,
-
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
-
-    _owner: owner,
-  };
-
+  Children: {
+    map,
+    forEach,
+    count,
+    toArray,
+    only,
+  },
 ```
