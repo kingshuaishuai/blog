@@ -217,7 +217,65 @@ export default function forwardRef<Props, ElementType: React$ElementType>(
 
 在上述`forwardRef使用`的代码中创建的`FunctionComp`是`{$$typeof:REACT_FORWARD_REF_TYPE,render}`这个对象，在使用`<FunctionComp ref={this.ref}/>`时，它的本质是`React.createElement(FunctionComp, {ref: xxxx}, null)`这样的，此时`FunctionComp`是我们传进`createElement`中的`type`参数，`createElement`返回的`element`的`$$typeof`仍然是`REACT_ELEMENT_TYPE`；
 
-## Children的实现
+## ReactChildren的使用方法和实现
+### ReactChildren的使用
+
+``` jsx
+function ParentComp ({children}) {
+  return (
+    <div className="parent">
+      <div className="title">Parent Component</div>
+      <div className="content">
+        {children}
+      </div>
+    </div>
+  )
+}
+```
+这样的代码大家平时用的应该多一点，在使用`ParentComp`组件时候，可以在标签中间写一些内容，这些内容就是children。
+
+**来看看React.Children.map的使用**
+
+``` javascript
+function ParentComp ({children}) {
+  return (
+    <div className="parent">
+      <div className="title">Parent Component</div>
+      <div className="content">
+        {React.Children.map(children, c => [c,c, [c]])}
+      </div>
+    </div>
+  )
+}
+
+class ChildrenDemo extends PureComponent{
+  constructor() {
+    super()
+    this.state = {}
+  }
+
+  render() {
+    return (
+      <div className="childrenDemo">
+        <ParentComp>
+          <div>child 1 content</div>
+          <div>child 2 content</div>
+          <div>child 3 content</div>
+        </ParentComp>
+      </div>
+    )
+  }
+}
+
+export default ChildrenDemo;
+```
+![结果](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566312728078.png)
+
+我们在使用这个API的时候，传递了两个参数，第一个是`children`，大家应该比较熟悉，第二个是一个回调函数，回调函数传入一个参数（代表children的一个元素），返回一个数组（数组不是一位数组，里面三个元素最后一个还是数组），在结果中我们可以看到，这个API将我们返回的数组平铺为一层[c1,c1,c1,c2,c2,c2,c3,c3,c3]，浏览器中显示的也就如上图所示。
+
+> 有兴趣的小伙伴可以尝试阅读[官方文档](https://reactjs.org/docs/react-api.html#reactchildrenmap)对于这个api的介绍
+
+### ReactChildren的实现
 在`react.js`中定义`React`时候我们可以看到一段关于`Children`的定义
 
 ``` javascript
@@ -229,6 +287,284 @@ export default function forwardRef<Props, ElementType: React$ElementType>(
     only,
   },
 ```
-![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566311644569.png)
+Children包含5个API，这里我们先详细讨论map API。这一部分并不是很好懂，请大家看的时候一定要用心。
+
+笔者读这一部分也是费了很大的劲，然后用思维导图软件画出了这个思维导图+流程图的东西（暂时就给它起名为思维流程图，其实更流程一点，而不思维），画得还是比较详细的，所以就很大，小伙伴最好把这个图下载下来放大看（可以配合源码，也可以配合下文），图片地址[https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566311843654.png](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566311843654.png)
+
 
 ![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566311843654.png)
+
+由于图太小不清楚，下面也会分别截出每个函数的流程图。
+
+打开`packages/react/src/ReactChildren.js`，找到`mapChildren`
+
+``` javascript
+function mapChildren(children, func, context) {
+  if (children == null) {
+    return children;
+  }
+  const result = [];
+  mapIntoWithKeyPrefixInternal(children, result, null, func, context);
+  return result;
+}
+```
+
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566314553816.png)
+
+这段代码短小精悍，给我们提供了直接使用的API。它内部逻辑也非常简单，首先看看`children`是否为`null`,如果如果为`null`就直接返回`null`，如果不是，则定义`result`（初始为空数组）来存放结果，经过`mapIntoWithKeyPrefixInternal`的一系列处理，得到结果。结果不管是`null`还是`result`，其实我们再写代码的时候都遇到过，如果一个组件中间什么都没传，结果就是null什么都不会显示，如果传递了一个`<div>`那就显示这个`div`，如果传递了一组`div`那就显示这一组（此时就是children不为null的情况），最后显示出来的东西也就是`result`这个数组。
+
+**这一系列处理就是什么处理？**
+
+``` javascript
+function mapIntoWithKeyPrefixInternal(children, array, prefix, func, context) {
+  let escapedPrefix = '';
+  if (prefix != null) {
+    escapedPrefix = escapeUserProvidedKey(prefix) + '/';
+  }
+  const traverseContext = getPooledTraverseContext(
+    array,
+    escapedPrefix,
+    func,
+    context,
+  );
+  traverseAllChildren(children, mapSingleChildIntoContext, traverseContext);
+  releaseTraverseContext(traverseContext);
+}
+```
+在进入这个函数的时候，一定要注意使用这个函数时候传递进来的参数究竟是哪几个，不然后面传递次数稍微一多就会晕头转向。
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566314430721.png)
+
+从上一个函数跳过来的时候传递了5个参数，大家可以注意一下这五个参数代表的是什么：
+1. `children`：我们再组件中间写的JSX代码
+2. `result`: 最终处理完成存放结果的数组
+3. `prefix`: 前缀，这里为null
+4. `func`: 我们在演示使用的过程中传入的第二个参数，是个回调函数`c => [c,c,[c]]`
+5. `context`: 上下文对象
+
+这个函数首先对`prefix`前缀字符串做了个处理，处理完之后还是个字符串。然后通过`getPooledTraverseContext`函数从`对象重用池`中拿出一个对象，说到这里，我们就不得不打断一下这个函数的讲解，突然出现一个`对象重用池`的概念，很多人会很懵逼，并且如果强制把这个函数解析完再继续下一个，会让很多读者产生很多疑惑，不利于后面源码的理解。
+
+**暂时跳到`getPooledTraverseContext`看看对象重用池**
+
+``` javascript
+const POOL_SIZE = 10;
+const traverseContextPool = [];
+function getPooledTraverseContext(
+  mapResult,
+  keyPrefix,
+  mapFunction,
+  mapContext,
+) {
+  if (traverseContextPool.length) {
+    const traverseContext = traverseContextPool.pop();
+    traverseContext.result = mapResult;
+    traverseContext.keyPrefix = keyPrefix;
+    traverseContext.func = mapFunction;
+    traverseContext.context = mapContext;
+    traverseContext.count = 0;
+    return traverseContext;
+  } else {
+    return {
+      result: mapResult,
+      keyPrefix: keyPrefix,
+      func: mapFunction,
+      context: mapContext,
+      count: 0,
+    };
+  }
+}
+```
+
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566315243261.png)
+
+首先看在使用`getPooledTraverseContext`获取对象的时候，传递了4个参数：
+1. `array`: 上个函数中对应的`result`，表示最终返回结果的数组
+2. `escapedPrefix`: 前缀，一个字符串，没什么好说的
+3. `func`: 我们使用API传递的回调函数 `c=>[c,c,[c]]`
+4. `context`: 上下文对象
+
+然后我们看看它做了什么，它去一个`traverseContextPool`数组（这个数组默认为空数组，最多存放10个元素）中尝试`pop`取出一个元素，如果能取出来的话，这个元素是一个对象，有5个属性，这里会把传进来的4个参数保存在这四个元素中，方便后面使用，另外一个属性是个用来计数的计数器。如果没取出来，就返回一个新对象，包含的也是这五个属性。这里要跟大家说说`对象重用池`了。这个对象有5个属性，如果每次使用这个对象都重新创建一个，那么会有较大的创建对象开销，为了节省这部分创建的开销，我们可以在使用完这个对象之后，把它的5个对象都置为空(count就是0了),然后扔回这个数组（`对象重用池`）中，后面要用的时候就直接从`对象重用池`中拿出来，不必重新创建对象，增加开销了。
+
+**再回到`mapIntoWithKeyPrefixInternal`函数中继续向下读**
+通过上一步拿到一个带有5个属性的对象之后，继续经过`traverseAllChildren`函数的一系列处理，得到了最终的结果`result`，其中具体内容太多下面再说，然后通过`releaseTraverseContext`函数释放了那个带5个参数的对象。我们先来看看如何释放的：
+
+``` javascript
+function releaseTraverseContext(traverseContext) {
+  traverseContext.result = null;
+  traverseContext.keyPrefix = null;
+  traverseContext.func = null;
+  traverseContext.context = null;
+  traverseContext.count = 0;
+  if (traverseContextPool.length < POOL_SIZE) {
+    traverseContextPool.push(traverseContext);
+  }
+}
+```
+这里也跟我们上面说的`对象重用池有所对应`，这里先把这个对象的5个属性清空，然后看看对象重用池是不是有空，有空的话就把这个清空的属性放进去，方便下次使用，节省创建开销。
+
+**traverseAllChildren和traverseAllChildrenImpl的实现**
+
+``` javascript
+function traverseAllChildren(children, callback, traverseContext) {
+  if (children == null) {
+    return 0;
+  }
+
+  return traverseAllChildrenImpl(children, '', callback, traverseContext);
+}
+```
+
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566316803465.png)
+
+这个函数基本没做什么重要的事，仅仅判断了`children`是否为`null`，如果是的话就返回0，不是的话就进行具体的处理。还是强调这里传递的参数，一定要注意，看图就可以了，就不用文字描述了。
+
+重要的是`traverseAllChildrenImpl`函数，这个函数有点长，这里给大家分成了两部分，可以分开看
+
+``` javascript
+function traverseAllChildrenImpl(
+  children,
+  nameSoFar,
+  callback,
+  traverseContext,
+) {
+// 第一部分
+  const type = typeof children;
+
+  if (type === 'undefined' || type === 'boolean') {
+    children = null;
+  }
+
+  let invokeCallback = false;
+
+  if (children === null) {
+    invokeCallback = true;
+  } else {
+    switch (type) {
+      case 'string':
+      case 'number':
+        invokeCallback = true;
+        break;
+      case 'object':
+        switch (children.$$typeof) {
+          case REACT_ELEMENT_TYPE:
+          case REACT_PORTAL_TYPE:
+            invokeCallback = true;
+        }
+    }
+  }
+
+  if (invokeCallback) {
+    callback(
+      traverseContext,
+      children,
+      nameSoFar === '' ? SEPARATOR + getComponentKey(children, 0) : nameSoFar,
+    );
+    return 1;
+  }
+  
+  // 第二部分
+
+  let child;
+  let nextName;
+  let subtreeCount = 0; // Count of children found in the current subtree.
+  const nextNamePrefix =
+    nameSoFar === '' ? SEPARATOR : nameSoFar + SUBSEPARATOR;
+
+  if (Array.isArray(children)) {
+    for (let i = 0; i < children.length; i++) {
+      child = children[i];
+      nextName = nextNamePrefix + getComponentKey(child, i);
+      subtreeCount += traverseAllChildrenImpl(
+        child,
+        nextName,
+        callback,
+        traverseContext,
+      );
+    }
+  } else {
+    const iteratorFn = getIteratorFn(children);
+    if (typeof iteratorFn === 'function') {
+      const iterator = iteratorFn.call(children);
+      let step;
+      let ii = 0;
+      while (!(step = iterator.next()).done) {
+        child = step.value;
+        nextName = nextNamePrefix + getComponentKey(child, ii++);
+        subtreeCount += traverseAllChildrenImpl(
+          child,
+          nextName,
+          callback,
+          traverseContext,
+        );
+      }
+    } else if (type === 'object') {
+      let addendum = '';
+      const childrenString = '' + children;
+      invariant(
+        false,
+        'Objects are not valid as a React child (found: %s).%s',
+        childrenString === '[object Object]'
+          ? 'object with keys {' + Object.keys(children).join(', ') + '}'
+          : childrenString,
+        addendum,
+      );
+    }
+  }
+
+  return subtreeCount;
+}
+```
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566317158229.png)
+
+上面的流程图说的很详细了，大家可以参照来看源码。这里就简单说一下这个函数的两部分分别作了什么事。
+第一部分是对`children`类型进行了检查（没有检查为Array或迭代器对象的情况），如果检查children是合法的ReactElement就会进行`callback`的调用，这里一定要注意`callback`传进来的是谁，这里是`callback为mapSingleChildIntoContext`,一直让大家关注传参问题，就是怕大家看着看着就搞混了。
+第二部分就是针对`children`是数组和迭代器对象的情况进行了处理（迭代器对象检查的原理是`obj[Symbol.iterator]`，比较简单大家可以自己定位源码找一下具体实现），然后对他们进行遍历，每个元素都重新执行`traverseAllChildrenImpl`函数形成递归。
+它其实只让可渲染的单元素进行下一步`callback`的调用，如果是数组或迭代器，就进行遍历。
+
+**最后一步callback => mapSingleChildIntoContext的实现**
+
+``` javascript
+function mapSingleChildIntoContext(bookKeeping, child, childKey) {
+  const {result, keyPrefix, func, context} = bookKeeping;
+
+  let mappedChild = func.call(context, child, bookKeeping.count++);
+  if (Array.isArray(mappedChild)) {
+    mapIntoWithKeyPrefixInternal(mappedChild, result, childKey, c => c);
+  } else if (mappedChild != null) {
+    if (isValidElement(mappedChild)) {
+      mappedChild = cloneAndReplaceKey(
+        mappedChild,
+        // Keep both the (mapped) and old keys if they differ, just as
+        // traverseAllChildren used to do for objects as children
+        keyPrefix +
+          (mappedChild.key && (!child || child.key !== mappedChild.key)
+            ? escapeUserProvidedKey(mappedChild.key) + '/'
+            : '') +
+          childKey,
+      );
+    }
+    result.push(mappedChild);
+  }
+}
+```
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566318050842.png)
+
+这里我们就用到了从`对象重用池拿出来的对象`，那个对象作用其实就是利用那5个属性帮我们保存了一些需要使用的变量和函数，然后执行我们传入的`func`（`c => [c,c,[c]]`）,如果结果不是数组而是元素并且不为`null`就会直接存储到`result`结果中，如果是个数组就会对它进行遍历，从`mapIntoWithKeyPrefixInternal`开始重新执行形成递归调用，直到最后将嵌套数组中所有元素都拿出来放到`result`中，这样就形成了我们最初看到的那种效果，不管我们的回调函数是多少层的数组，最后都会变成一层。
+
+### 小结
+这里文字性的小结就留给大家，给大家画了一张总结性的流程图（有参考yck大神的图），但其实是根据自己看源码画出来的并不是搬运的。
+![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1566311644569.png)
+
+## ReactChildren的其他方法
+
+``` javascript
+{
+  forEach,
+  count,
+  toArray,
+  only,
+}
+```
+对于这几个方法，大家可以自行查看了，建议先浏览一遍`forEach`，跟`map`非常相似，但是比`map`少了点东西。其他几个都是四五行的代码，大家自己看看。里面用到的函数我们上面都有讲到。
+
+## 小结
+这篇文章跟大家一起读了`Component`、`refs`和`Children`相关的源码，最复杂的还是数`Children`了，说实话，连看大神博客，看源码、画图带写文章，花了七八个小时，其实内容跟大神们的文章比起来还是很不一样的，如果基础不是很好的同学，我感觉这里会讲的更详细。
