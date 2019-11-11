@@ -396,9 +396,8 @@ initData() {
 1. `data-key_id`： 标识当前cell的规格id，唯一确定一种规格
 2. `data-value_id`: 标识当前cell的具体规格id，唯一表示一种规格
 3. `data-select`: 通过wxs实现一个函数，传入selected与disabled，来确定当前cell是可选还是已选还是禁用状态，
-4. `data-x`: 用更简单的方式确定当前点击的cell是哪种类型的，只能确定相同x的是同一种规格，不能知道具体是哪种
-
-5: `data-y`: 简单确定当前选中的cell是某种规格的一种，确定位置，x与y的设计可以更方便查找cell位置
+4. `data-x`: 用更简单的方式确定当前点击的cell是哪种类型的，只能确定相同x的是同一种规格，不能知道具体是哪种。
+5. `data-y`: 简单确定当前选中的cell是某种规格的一种，确定位置，x与y的设计可以更方便查找cell位置
 
 再说明一下cell样式的确定也是通过wxs中的一个函数，传入seleted与disabled确定当前cell的样式。
 
