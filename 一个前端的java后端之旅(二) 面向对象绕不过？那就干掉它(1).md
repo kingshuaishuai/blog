@@ -387,3 +387,21 @@ public class Main {
 ![](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1577515535594.png)
 
 这样就舒服多了，未填的值直接为设置的初始值。
+
+## 工欲善其事必先利其器：idea的利用
+
+以上所有的属性，构造方法，普通方法都是我们自己写的，其实完全没有必要让自己这么累，idea工具可以帮助我们做这些事，右键点击idea写代码的区域，点击`generate`,或者按相应的快捷键，`generate`选项右边有快捷键标识，Mac的是`⌘+N`,windows自行查看（我的win懒得开机😂）
+![](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1577517007088.png)
+
+![](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1577517259430.png)
+
+通过这些选项，可以自行生成`getter` `setter` `构造函数` `toString()`等方法，这里大家自行体验，我也去体验一把。
+
+所谓的`getter`就是获取私有属性的方法，`setter`就是设置私有属性的方法，因为他们的书写只是体力活，所以大家可以用idea工具生成，如果有需要更改的再去更改。
+
+
+## 小结
+
+本篇文章简单介绍了java中类的使用，包括构造方法，构造方法的重载，调用其他构造方法，toString()方法，属性值设置等，并且里面穿插了包装类，拆箱装箱等小知识点。
+
+当然，本文知识java面向对象的开始，因为java整体都是面向对象的，后续将继续分享接口、继承反射、bean、泛型、注解、等内容，尽量让快速掌握可以使用spring boot的程度，然后再补充java的其他知识。有一点要保证的是，这些内容加起来肯定不会像字典一样厚，但关键内容仍然会保证不缺失。
