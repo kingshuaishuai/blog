@@ -1,6 +1,4 @@
----
-title: 一个前端的java后端之旅(一) 从Package入手Java
----
+# 一个前端的java后端之旅(一) 从Package入手Java
 
 ![](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1576812813818.png)
 
