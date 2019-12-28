@@ -1,4 +1,4 @@
-# 一个前端的java后端之旅(二) 面向对象绕不过？那就干掉它(1)
+# 一个前端的java后端之旅(二) 面向对象绕不过？那就干掉它
 
 ![](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1577506338111.png)
 java跟我们用过的（c++/JavaScript）有很大的不同，尽管都支持面向对象，但你仍可以在c++,JavaScript中不使用类和对象，而java就不同了，就连`main`入口方法都是类的方法，它是一个纯粹的面向对象的语言，所以面向对象在java学习中是无法绕过的，那既然绕不过，就先干掉他，在适应了它的规则后再深入了解它。
