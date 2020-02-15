@@ -1,6 +1,4 @@
----
-title: 一个前端的java后端之旅(三) 接口的意义
----
+# 一个前端的java后端之旅(三) 接口的意义
 
 ![enter description here](https://www.github.com/kingshuaishuai/static_resource/raw/master/assets/1581729607349.png)
 
