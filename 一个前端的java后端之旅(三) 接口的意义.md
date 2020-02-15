@@ -64,7 +64,7 @@ public class MyFunction2 {
 ## 4. 接口语法层面的细节
 前面啰啰嗦嗦地说了很多，但其实并没有什么关于`interface`语法层面的东西，但是有了这些啰里啰嗦的铺垫，相信基于对`interface`的这个认识现在来学习它应该会有不同的感觉（懂了原理，我们就缺语法层面的用法了）。
 
-### 接口的定义、使用、实现与继承
+### 4.1 接口的定义、使用、实现与继承
 
 上面举例子的时候其实我们已经看到过一次接口的定义，在接口定义中，我们需要提供方法名与方法类型，但是不需要去实现它。
 
@@ -205,3 +205,84 @@ public class Fimpl implements F{
 
 ```
 结果为三个`true`.
+
+**接口中的常量**
+
+在接口中除了定义函数，还可以定义常量，在接口中定义的常量会被自动转为`public static final`
+
+``` java
+public interface SwingConstants {
+    int NORTH = 1;
+    int NORTH_FAST = 2;
+    int EAST = 3;
+    ...
+}
+```
+在接口中定义的常量可以通过`接口名.常量`的方式引用，例如`SwingConstants.NORTH`。在定义时仅需要写`类型 名称 = 值;`即可。
+
+### 4.2 接口的静态方法、默认方法与私有方法
+
+按照正常思维，接口中的定义就是方法名，在早期版本java中接口里也确实不能定义完整的方法，但是现在（这里我学习的是java 9，就只保证9+里面肯定有），有3中方式可以在接口中实现具体的方法。
+
+**静态方法**
+在接口中定义的静态方法可以通过`接口名.方法名`的方式调用。
+定义方法为：
+
+``` java
+public interface IntSequence {
+    public static boolean hasNext() {
+        return true;
+    }
+}
+```
+接口的静态方法在工厂方法的应用中比较有意义。
+
+**默认方法**
+``` java
+public interface IntSequence {
+    default boolean hasNext() {
+        return true;
+    }
+}
+```
+接口中的方法加上方法体与default修饰符就可以改造成默认方法，实现该接口的类可以选择覆盖或使用默认方法。
+
+如果一个类继承多个接口，而多个接口中有默认方法名称和参数类型相同的默认方法则会产生冲突。(参考《写给大忙人的JavaSE9核心技术》示例)
+
+``` java
+public interface Person {
+    String getName();
+    default int getId(){
+        return 0;
+    }
+}
+
+public interface Identified {
+    default int getId() {
+        return Math.abs(hashCode());
+    }
+}
+
+public class Employee implements Person, Identified {
+    ...
+}
+```
+
+解决方法,通过确定父类型调用其方法（super可以调用父类型的方法）。
+
+``` java
+public class Employee implements Person, Identified {
+    public int getId() {
+        return Identified.super.getId();
+    }
+    ...
+}
+```
+
+**私有方法**
+
+从java9开始接口中可以拥有私有方法，可以是static方法也可以是实例方法，但只能用于接口自身的方法中。
+
+## 小结
+
+接口相关的语法并没有难度，但是其思想确是值得探究的。我一直在想自己可以写一些java程序，但是还是觉得它比较难，可能也正是因为java并不是简单的语法堆积，它内部有很多值得探究的地方，我却从来没去研究过吧。
