@@ -594,3 +594,176 @@ autofocus生效，完美。这样比mixin的好处就很明显了，最起码我
 拆分逻辑后，有可能在别的地方也会使用这些hooks，就算用不到，这也会给维护带来更多的便利性。毕竟一些函数一会写在`mounted`中一会又要在`updated`中写，乱七八糟一种逻辑分散在各处，维护起来成本也是挺大的。
 
 ## vue-composition-helpers的使用
+这个工具是用来代替`mapState,mapActions`等函数的替代品。
+vue3中好像也是提供了类似的hook。
+
+**以一个模拟的用户登录功能为例**
+创建`src/store/modules/user.ts`文件
+
+```typescript
+
+import { Module } from 'vuex';
+// 模拟的登录api
+const fakeLogin = () => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({name: '张三' })
+    },300)
+  })
+}
+
+// 声明state
+interface State {
+  loginPending: boolean;
+  userInfo: {name: string} | null
+}
+
+// 创建子store
+const UserModel: Module<State, {}> = {
+  namespaced: true,
+  state: {
+    loginPending: false,
+    userInfo: null
+  },
+  mutations: {
+    setLoginPending: (state, loginPending: boolean) => {
+      state.loginPending = loginPending;
+    },
+    setUserInfo: (state, userInfo: {name: string} | null) => {
+      state.userInfo = userInfo;
+    }
+  },
+  actions: {
+    loginAction: async ({ commit, state }): Promise<any> => {
+      if (state.loginPending) {
+        return;
+      }
+      try {
+        commit('setLoginPending', true);
+        const res = await fakeLogin();
+        commit('setUserInfo', res);
+        commit('setLoginPending', false);
+      } catch (exp) {
+        commit('setLoginPending', false);
+        console.error('error: ', exp);
+        throw exp;
+      }
+    },
+    logoutAction: () => {
+      console.log('this is logout');
+    }
+  }
+};
+
+export default UserModel;
+
+```
+
+在`src/store/index.ts`中引入
+
+```typescript
+import Vue from 'vue';
+import Vuex from 'vuex';
+import user from './modules/user';
+
+Vue.use(Vuex);
+
+const store = new Vuex.Store({
+  state: {},
+  mutations: {},
+  actions: {},
+  modules: {
+    user
+  }
+});
+
+export default store;
+```
+
+以上就是vuex的基本使用了。
+我们可以通过创建一个`useUserStore`的hook，进一步使得我们的代码更通用。下面举例使用了`useNamespacedState, useNamespacedActions`两个api，其余的给为可以查查文档，使用方式跟`useState,useActions`等一模一样。
+
+```typescript
+import { useNamespacedState, useNamespacedActions } from "vuex-composition-helpers";
+import { Ref } from '@vue/composition-api';
+
+export function useUserStore() {
+  const {
+    loginPending,
+    userInfo
+  } : {
+    loginPending: Ref<boolean>;
+    userInfo: Ref<{name: string} | null>;
+  } = useNamespacedState("user", ["loginPending", "userInfo"]);
+
+  const { loginAction } = useNamespacedActions("user", ["loginAction"])
+
+  return {
+    state: {
+      loginPending,
+      userInfo
+    },
+    actions: {
+      loginAction
+    }
+  }
+}
+```
+
+为什么不直接在具体的组件中使用上面函数内部的逻辑？如果是那样使用的话每次要用store中的内容都要重复一遍相同的操作，所以有重复逻辑，我们就用hooks.
+
+**在about组件中使用我们创建的useUserStore hook**
+
+```typescript
+<template>
+  <div class="about" v-loading="loginPending">
+    <el-input ref="focusEl" placeholder="请输入内容" v-model="inputValue" />
+    <el-button @click="loginAction">登录</el-button>
+    <div>{{ JSON.stringify(userInfo) }}</div>
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent, ref } from "@vue/composition-api";
+import { useAutofocus } from "@/hooks/useAutofocus";
+import { useUserStore } from "@/hooks/useUserStore";
+export default defineComponent({
+  name: "About",
+  setup() {
+    const inputValue = ref("");
+    const focusEl = useAutofocus();
+    const {
+      state: { loginPending, userInfo },
+      actions: { loginAction }
+    } = useUserStore();
+
+    return {
+      inputValue,
+      focusEl,
+      loginPending,
+      userInfo,
+      loginAction
+    };
+  } 
+});
+</script>
+```
+效果：
+![enter description here](./images/1596775501418.png)
+![enter description here](./images/1596775529178.png)
+![enter description here](./images/1596775519208.png)
+
+封装为hooks之后，如果想在其他地方使用，直接调用hook函数，十分方便。
+
+## 关于响应式api
+其实最近也看了不少同学分享了自己的vue3相关的尝鲜文章，都是主要介绍响应式api的，但这里只会带一下。
+
+响应式api,钩子函数等都可以在官网文档中找到，介绍的又全面又详细。
+这里简单说一下使用：
+1. `const a = ref(true)`的使用：在模板中可以直接使用a这个值，在代码中对a更新则需要使用a.value = newvalue。ref一般用于普通类型的值，或者数组。其实如果ref中的值为数组或对象，最终在实现上都会转换为reactive。
+2. `const aa = reactive({name: 'haha'})`,reactive只能对数组或对象使用，不管是在更新还是使用时候都直接对其进行操作即可，没有向ref一样的`.value`;
+
+这两个是最常用的，其他的如果你有什么疑问，官网是最好的解决疑问之处。
+
+## 总结
+这次分享了一些vue-composition-api结合ts的使，需要注意的是要转换思维，从配置式转为函数式，一定要思考之前的代码在新的框架应该怎么写。我的探索基本就是上面这种写法，或许大家会探索到更好的使用方式，欢迎到时候`@艾特一下我`，让我跟着学习一下。另外推荐拉勾教育黄轶黄老师的vue3源码解析，这里不放链接，不放推广码，凭心推荐。你可能会收获更多。
